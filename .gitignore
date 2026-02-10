@@ -1,0 +1,8 @@
+# Ignore all data files
+data/
+
+# Ignore virtual environment
+venv/
+
+# Ignore todo file
+todo.md

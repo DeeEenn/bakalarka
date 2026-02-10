@@ -1,48 +1,73 @@
 import cv2
 import mediapipe as mp
-import numpy as mp
+import numpy as np
 import os
 
-mp_pose = mp.solutions.pose
-pose = mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.5, model_complexity=1)
+# Použijeme cestu, která nám v testu zafungovala
+from mediapipe.python.solutions import pose as mp_pose
 
-def extract_landmarks(input_folder, output_folder):
-    if not os.path.exists(output_folder):
-        os.makedirs(output_folder)
+# Inicializace MediaPipe Pose
+pose = mp_pose.Pose(
+    static_image_mode=False, 
+    model_complexity=1, 
+    min_detection_confidence=0.5,
+    min_tracking_confidence=0.5
+)
 
-    
-    # prochaze souboru v raw
-    for video_name in os.listdir(input_folder):
-        if video_name.endswith((".mp4", ".avi")):
-            video_path = os.path.join(input_folder, video_name)
-            output_path = os.path.join(output_folder, video_name.replace(".mp4", ".npy").replace(".avi", ".npy"))
+def extract_landmarks(input_root, output_root):
+    # Kontrola existence vstupní složky (vzhledem k src/)
+    if not os.path.exists(input_root):
+        print(f"CHYBA: Slozka '{input_root}' nebyla nalezena!")
+        return
 
-            print(f"zpracovavam video: {video_name}")
+    print(f"Startuji extrakci z: {os.path.abspath(input_root)}")
 
-            cap = cv2.VideoCapture(video_path)
-            video_data = []
-
-            while cap.isOpened():
-                ret, frame = cap.read()
-                if not ret:
-                    break
+    for root, dirs, files in os.walk(input_root):
+        for video_name in files:
+            if video_name.lower().endswith((".mp4", ".avi", ".mov")):
+                video_path = os.path.join(root, video_name)
                 
-                # opencv cte BGR, mediapie potrebuje RGB
-                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                results = pose.process(rgb_frame)
+                # Zachování struktury složek (01spravne, 08spatne atd.)
+                rel_path = os.path.relpath(root, input_root)
+                target_folder = os.path.join(output_root, rel_path)
+                os.makedirs(target_folder, exist_ok=True)
 
-                # pokud mediapipe uspesne detekuje postavu, ukladame body
-                if results.pose_landmarks:
-                    frame_landmarks = []
-                    for landmark in results.pose_landmarks.landmark:
-                        # ukladame x, y, z a visibity
-                        frame_landmarks.extend([landmark.x, landmark.y, landmark.z, landmark.visibility])
-                    video_data.append(frame_landmarks)
-                else:
-                    video_data.append([0,0] * 132)
+                output_path = os.path.join(target_folder, os.path.splitext(video_name)[0] + ".npy")
 
-            cap.release()
+                if os.path.exists(output_path):
+                    print(f"Preskakuji (hotovo): {video_name}")
+                    continue
 
-            np.save(output_path, np.array(video_data))
-            print(f"Ulozeno: {output_path}")
+                print(f"Zpracovavam: {rel_path}/{video_name}")
 
+                cap = cv2.VideoCapture(video_path)
+                video_data = []
+
+                while cap.isOpened():
+                    ret, frame = cap.read()
+                    if not ret:
+                        break
+                    
+                    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    results = pose.process(rgb_frame)
+
+                    if results.pose_landmarks:
+                        frame_landmarks = []
+                        for landmark in results.pose_landmarks.landmark:
+                            # x, y, z a visibility (33 bodů * 4 = 132 hodnot)
+                            frame_landmarks.extend([landmark.x, landmark.y, landmark.z, landmark.visibility])
+                        video_data.append(frame_landmarks)
+                    else:
+                        # Pokud postavu nenajde, dáme pole nul (důležité pro časovou osu)Ne 
+                np.save(output_path, np.array(video_data))
+
+if __name__ == "__main__":
+    # Získáme absolutní cestu ke skriptu a od ní odvozujeme cesty k datům
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(script_dir)
+    
+    input_dir = os.path.join(project_root, "data", "raw_videos")
+    output_dir = os.path.join(project_root, "data", "features")
+    
+    extract_landmarks(input_dir, output_dir)
+    print("HOTOVO! Vsechna videa byla transformovana na souradnice.")
