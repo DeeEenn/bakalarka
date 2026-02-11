@@ -3,9 +3,8 @@
 ### Creating venv
 - python -m venv venv
 ### Activating venv
-- venv\Scripts\activate
-- 
-# Install libraries
+- venv\Scripts\activate§
+### Install libraries
 - **run:** pip install opencv-python mediapipe numpy matplotlib torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 - **or:** install dependencies from requirements.md
 
