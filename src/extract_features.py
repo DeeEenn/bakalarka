@@ -59,7 +59,7 @@ def extract_landmarks(input_root, output_root):
                         video_data.append(frame_landmarks)
                     else:
                         # Pokud postavu nenajde, dáme pole nul (důležité pro časovou osu)Ne 
-                np.save(output_path, np.array(video_data))
+                        np.save(output_path, np.array(video_data))
 
 if __name__ == "__main__":
     # Získáme absolutní cestu ke skriptu a od ní odvozujeme cesty k datům

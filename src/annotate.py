@@ -40,6 +40,12 @@ def annotate_videos():
                 print(f"\n>>> START ANOTACE: {file}")
                 cap = cv2.VideoCapture(video_path)
                 labels = []
+                current_label = 0  # inicializace pred smyckou
+                
+                # vytvoreni okna s moznosti zmeny velikosti
+                window_name = "ANOTACE NEXTHALER (Drz cislo 1-4, ESC = konec)"
+                cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
+                cv2.resizeWindow(window_name, 1280, 720)
 
                 while cap.isOpened():
                     ret, frame = cap.read()
@@ -69,7 +75,7 @@ def annotate_videos():
                     color = (0, 255, 0) if current_label > 0 else (200, 200, 200)
                     cv2.putText(frame, text, (30, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
 
-                    cv2.imshow("ANOTACE NEXTHALER (Drz cislo 1-4)", frame)
+                    cv2.imshow(window_name, frame)
                     labels.append(current_label)
 
                 cap.release()
