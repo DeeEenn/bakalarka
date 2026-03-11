@@ -11,19 +11,17 @@ class InhalerDataset(Dataset):
         self.data_list = self._get_data_list()
 
     def _get_data_list(self):
-        # najde vsechny .npy soubory, ktere maji zaroven i .txt label
         samples = []
         for root, _, files in os.walk(self.features_dir):
             for file in files:
                 if file.endswith(".npy"):
+                    # Zachování relativní cesty pro nalezení labelu
                     rel_path = os.path.relpath(os.path.join(root, file), self.features_dir)
                     label_file = os.path.join(self.labels_dir, rel_path.replace(".npy", ".txt"))
                     
-
                     if os.path.exists(label_file):
                         samples.append((os.path.join(root, file), label_file))
-
-            return samples
+        return samples
     
     def __len__(self):
         return len(self.data_list)
@@ -31,33 +29,20 @@ class InhalerDataset(Dataset):
     def __getitem__(self, idx):
         feature_path, label_path = self.data_list[idx]
 
-        # nacteni dat
-        features = np.load(feat_path).T # MS-TCN ocekava (C,T) -> (132, pocet_framu)
+        # Načtení dat (243, T)
+        features = np.load(feature_path).T 
         labels = np.loadtxt(label_path, dtype=np.int64)
 
-        # osetreni delky
         T = features.shape[1]
+        
+        # Ošetření délky (Padding)
         if T < self.max_len:
+            pad_width = self.max_len - T
+            features = np.pad(features, ((0, 0), (0, pad_width)), mode='constant')
+            # Label padding: 0 (Klid) nebo -100 pro ignorování v Loss
+            labels = np.pad(labels, (0, pad_width), mode='constant', constant_values=0)
+        else:
             features = features[:, :self.max_len]
             labels = labels[:self.max_len]
 
-        # prevod na pyTorch tenzory
-        feat_tensor = torch.from_numpy(features).float()
-        label_tensor = torch.from_numpy(labels).long()
-
-        return feat_tensor, label_tensor, T
-    
-if __name__ == "__main__":
-    # testovaci spousteni
-    ds = InhalerDataset("../data/features_norm", "../data/labels")
-    print(f"Nalezeno {len(ds)} kompletnich dvojic (data + label).")
-
-
-
-
-
-
-
-
-
-        
+        return torch.from_numpy(features).float(), torch.from_numpy(labels).long(), T

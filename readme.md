@@ -3,9 +3,9 @@
 ### Creating venv
 - python -m venv venv
 ### Activating venv
-- venv\Scripts\activate§
+- venv\Scripts\activate
 ### Install libraries
-- **run:** pip install opencv-python mediapipe numpy matplotlib torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+- **run:** pip install opencv-python pandas mediapipe numpy matplotlib torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
 - **or:** install dependencies from requirements.md
 
 ## How does the whole pipeline work?

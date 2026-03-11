@@ -8,6 +8,7 @@ venv/
 todo.md
 PRAKTICKA_CAST.md
 
-zaloha_data/
+zaloha_raw_data/
 
 
+asformer_v1.pth
