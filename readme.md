@@ -16,3 +16,13 @@
 - This can be done by **running:** python src/extract_features.py
 - This might take a lot of time depending on the size of your dataset and the efficiency of your hardware.
 - This process is done via **cpu** and for example my dataset that has around 13gb of videos took around 1 hour and 30 minutes on AMD Ryzen 5 7600X
+#
+py train.py
+py train_mstcn.py
+
+# porovnani obou moddlu
+py eval_compare_models.py --asformer_ckpt asformer_attention_v1.pth --mstcn_ckpt mstcn_v1.pth
+# graficke porovnani asfirner
+py predict_unified.py --model asformer --ckpt asformer_attention_v1.pth
+# graficke porovnani mstcn
+py predict_unified.py --model mstcn --ckpt mstcn_v1.pth

@@ -75,7 +75,6 @@ def predict_and_plot_human_readable():
     # LEGENDA
     legend_patches = []
     for phase, info in PHASES_INFO.items():
-        # OPRAVENO: mpatches.Patch místo mpatches::Patch
         patch = mpatches.Patch(color=info["color"], label=f"{phase}: {info['name']}")
         legend_patches.append(patch)
     
