@@ -18,7 +18,7 @@ train_loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=True)
 # 243 vstupních features, 6 výstupních tříd (0-5)
 model = ASFormer(num_layers=10, num_f_maps=64, input_dim=243, num_classes=6).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=LR)
-criterion = torch.nn.CrossEntropyLoss()
+criterion = torch.nn.CrossEntropyLoss(ignore_index=-100)
 
 print(f"Start trénování na {len(dataset)} videích...")
 

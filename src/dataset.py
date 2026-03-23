@@ -29,7 +29,7 @@ class InhalerDataset(Dataset):
     def __getitem__(self, idx):
         feature_path, label_path = self.data_list[idx]
 
-        # Načtení dat (243, T)
+    # Načtení dat (243, T)
         features = np.load(feature_path).T 
         labels = np.loadtxt(label_path, dtype=np.int64)
 
@@ -40,9 +40,11 @@ class InhalerDataset(Dataset):
             pad_width = self.max_len - T
             features = np.pad(features, ((0, 0), (0, pad_width)), mode='constant')
             # Label padding: 0 (Klid) nebo -100 pro ignorování v Loss
-            labels = np.pad(labels, (0, pad_width), mode='constant', constant_values=0)
+            labels = np.pad(labels, (0, pad_width), mode='constant', constant_values=-100)
         else:
             features = features[:, :self.max_len]
             labels = labels[:self.max_len]
 
-        return torch.from_numpy(features).float(), torch.from_numpy(labels).long(), T
+        T_eff = min(T, self.max_len)
+
+        return torch.from_numpy(features).float(), torch.from_numpy(labels).long(), T_eff
