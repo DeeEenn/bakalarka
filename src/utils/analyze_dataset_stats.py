@@ -1,5 +1,6 @@
 import os
 import numpy as np
+from utils.paths import project_paths
 
 def analyze_stats(features_dir, labels_dir):
     stats = []
@@ -47,4 +48,5 @@ def analyze_stats(features_dir, labels_dir):
         print(f"{class_names[k]:<12}: {v/30:>7.2f} s ({percentage:>5.1f} %)")
 
 if __name__ == "__main__":
-    analyze_stats("../../data/features_enhanced", "../../data/labels")
+    paths = project_paths(__file__)
+    analyze_stats(str(paths["features_enhanced"]), str(paths["labels"]))

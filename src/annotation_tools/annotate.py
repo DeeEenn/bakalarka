@@ -1,14 +1,15 @@
 import csv
 import os
 import cv2
+from utils.paths import project_paths
 
 # CONFIG
-script_dir = os.path.dirname(os.path.abspath(__file__))
-project_root = os.path.dirname(script_dir)
+paths = project_paths(__file__)
+project_root = str(paths["root"])
 
-VIDEO_DIR = os.path.join(project_root, "data", "raw_videos")
-OUTPUT_DIR = os.path.join(project_root, "data", "labels")
-METADATA_FILE = os.path.join(project_root, "data", "video_metadata.csv")
+VIDEO_DIR = str(paths["raw_videos"])
+OUTPUT_DIR = str(paths["labels"])
+METADATA_FILE = str(paths["metadata_csv"])
 
 PHASES_NAME = {
     0: "KLID (0)",

@@ -6,15 +6,9 @@ import torch.nn as nn
 
 
 class TemporalConvFFN(nn.Module):
-    """
-    Feed-forward cast ASFormer vrstvy:
-    depthwise dilatovana conv + pointwise projekce.
-    """
-
     def __init__(self, d_model: int, dropout: float = 0.1, dilation: int = 1):
         super().__init__()
         ff_dim = d_model * 4
-
         self.dw_conv = nn.Conv1d(
             d_model,
             d_model,
@@ -25,33 +19,23 @@ class TemporalConvFFN(nn.Module):
         )
         self.pw_in = nn.Conv1d(d_model, ff_dim, kernel_size=1)
         self.pw_out = nn.Conv1d(ff_dim, d_model, kernel_size=1)
-
         self.act = nn.GELU()
         self.dropout = nn.Dropout(dropout)
         self.norm = nn.LayerNorm(d_model)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # x: (B, T, C)
         x = self.norm(x)
-        y = x.transpose(1, 2)  # (B, C, T)
+        y = x.transpose(1, 2)
         y = self.dw_conv(y)
         y = self.pw_in(y)
         y = self.act(y)
         y = self.dropout(y)
         y = self.pw_out(y)
         y = self.dropout(y)
-        y = y.transpose(1, 2)  # (B, T, C)
-        return y
+        return y.transpose(1, 2)
 
 
 class ASFormerLayer(nn.Module):
-    """
-    Jedna ASFormer vrstva:
-    1) MHSA (self-attention)
-    2) temporal FFN s dilatovanou konvoluci
-    Oboji v pre-norm residual stylu.
-    """
-
     def __init__(
         self,
         d_model: int,
@@ -61,7 +45,6 @@ class ASFormerLayer(nn.Module):
         window_size: int,
     ):
         super().__init__()
-
         self.norm_attn = nn.LayerNorm(d_model)
         self.attn = nn.MultiheadAttention(
             embed_dim=d_model,
@@ -70,23 +53,18 @@ class ASFormerLayer(nn.Module):
             batch_first=True,
         )
         self.drop_attn = nn.Dropout(dropout)
-
         self.norm_ffn = nn.LayerNorm(d_model)
         self.ffn = TemporalConvFFN(d_model=d_model, dropout=dropout, dilation=dilation)
         self.drop_ffn = nn.Dropout(dropout)
         self.window_size = max(1, window_size)
 
     def _build_local_attention_mask(self, seq_len: int, device: torch.device) -> torch.Tensor:
-        # Mask outside local window: 0 for allowed, -inf for blocked.
         idx = torch.arange(seq_len, device=device)
         dist = torch.abs(idx[:, None] - idx[None, :])
         mask = torch.zeros((seq_len, seq_len), device=device)
-        mask = mask.masked_fill(dist > self.window_size, float("-inf"))
-        return mask
+        return mask.masked_fill(dist > self.window_size, float("-inf"))
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        # x: (B, T, C)
-        # mask: (B, T) True = valid pozice, False = padding
         key_padding_mask = None if mask is None else ~mask
         local_attn_mask = self._build_local_attention_mask(x.size(1), x.device)
 
@@ -111,11 +89,6 @@ class ASFormerLayer(nn.Module):
 
 
 class ASFormer(nn.Module):
-    """
-    ASFormer-like model pro temporalni segmentaci:
-    input projection -> stack [self-attention + temporal conv ffn] -> class head
-    """
-
     def __init__(
         self,
         num_layers: int,
@@ -128,14 +101,12 @@ class ASFormer(nn.Module):
         max_window: int = 256,
     ):
         super().__init__()
-
         self.input_proj = nn.Conv1d(input_dim, d_model, kernel_size=1)
         self.input_dropout = nn.Dropout(dropout)
 
         layers = []
         for i in range(num_layers):
             dilation = min(2 ** i, max_dilation)
-            # Hierarchical local attention window grows as 2^i.
             window_size = min(2 ** i, max_window)
             layers.append(
                 ASFormerLayer(
@@ -147,16 +118,13 @@ class ASFormer(nn.Module):
                 )
             )
         self.layers = nn.ModuleList(layers)
-
         self.final_norm = nn.LayerNorm(d_model)
-
         self.classifier = nn.Linear(d_model, num_classes)
 
     @staticmethod
     def _sinusoidal_positional_encoding(
         length: int, dim: int, device: torch.device, dtype: torch.dtype
     ) -> torch.Tensor:
-        # (1, T, C)
         position = torch.arange(length, device=device, dtype=dtype).unsqueeze(1)
         div_term = torch.exp(
             torch.arange(0, dim, 2, device=device, dtype=dtype) * (-math.log(10000.0) / dim)
@@ -167,9 +135,8 @@ class ASFormer(nn.Module):
         return pe.unsqueeze(0)
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        # x: (B, input_dim, T)
-        x = self.input_proj(x)       # (B, d_model, T)
-        x = x.transpose(1, 2)        # (B, T, d_model)
+        x = self.input_proj(x)
+        x = x.transpose(1, 2)
 
         if mask is None:
             mask = torch.ones((x.size(0), x.size(1)), dtype=torch.bool, device=x.device)
@@ -187,6 +154,5 @@ class ASFormer(nn.Module):
             x = layer(x, mask=mask)
 
         x = self.final_norm(x)
-        logits = self.classifier(x)   
-        logits = logits.transpose(1, 2) 
-        return logits
+        logits = self.classifier(x)
+        return logits.transpose(1, 2)

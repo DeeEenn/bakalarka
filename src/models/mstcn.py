@@ -53,7 +53,6 @@ class SingleStageTCN(nn.Module):
         self.conv_out = nn.Conv1d(num_f_maps, num_classes, kernel_size=1)
 
     def forward(self, x, mask=None):
-        # mask: (B, 1, T)
         if mask is not None:
             x = x * mask
         out = self.conv_in(x)
@@ -68,12 +67,6 @@ class SingleStageTCN(nn.Module):
 
 
 class MSTCN(nn.Module):
-    """
-    Multi-Stage TCN:
-    - Stage 1 bere puvodni feature vstup
-    - Dalsi stage berou softmax vystup predchoziho stage a rafinuji predikci
-    """
-
     def __init__(
         self,
         num_stages,
@@ -100,7 +93,7 @@ class MSTCN(nn.Module):
                 SingleStageTCN(
                     num_layers=num_layers,
                     num_f_maps=num_f_maps,
-                    dim_in=num_classes,  # refinement stage vstup
+                    dim_in=num_classes,
                     num_classes=num_classes,
                     dropout=dropout,
                     max_dilation=max_dilation,
@@ -110,7 +103,6 @@ class MSTCN(nn.Module):
         )
 
     def forward(self, x, mask=None):
-        # x: (B, F, T), mask: (B, T) bool
         outputs = []
 
         mask_1d = None
@@ -124,5 +116,4 @@ class MSTCN(nn.Module):
             out = stage(F.softmax(out, dim=1), mask=mask_1d)
             outputs.append(out)
 
-        # Vraci list/stoh vsech stage logits: [S, B, C, T]
         return torch.stack(outputs, dim=0)

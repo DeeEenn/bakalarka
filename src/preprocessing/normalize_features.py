@@ -1,5 +1,6 @@
 import numpy as np
 import os
+from utils.paths import project_paths
 
 def normalize_skeleton(data):
     """
@@ -61,12 +62,9 @@ def proces_all_features(input_root, output_root):
                 print(f"Normalizovano: {file}") # Opraveno: print
 
 if __name__ == "__main__":
-    # Získáme absolutní cestu ke skriptu a od ní odvozujeme cesty k datům
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(script_dir)
-    
-    input_dir = os.path.join(project_root, "data", "features")
-    output_dir = os.path.join(project_root, "data", "features_norm")
+    paths = project_paths(__file__)
+    input_dir = str(paths["features_enhanced"])
+    output_dir = os.path.join(str(paths["data"]), "features_norm")
     
     proces_all_features(input_dir, output_dir)
     print("Vsechna data byla centrovana a normalizovana")

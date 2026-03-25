@@ -1,7 +1,7 @@
 import os
 import cv2
 
-from annotate import (
+from annotation_tools.annotate import (
     METADATA_FILE,
     OUTPUT_DIR,
     VIDEO_DIR,

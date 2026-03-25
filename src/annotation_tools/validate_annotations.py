@@ -1,15 +1,14 @@
 import os
 import numpy as np
+from utils.paths import project_paths
 
 def validate_annotations():
     """
     Ověří, že počet labelů odpovídá počtu snímků v NPY souborech
     """
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(script_dir)
-    
-    features_dir = os.path.join(project_root, "data", "features")
-    labels_dir = os.path.join(project_root, "data", "labels")
+    paths = project_paths(__file__)
+    features_dir = str(paths["features_enhanced"])
+    labels_dir = str(paths["labels"])
     
     print("\n" + "="*80)
     print("VALIDACE SYNCHRONIZACE: Features vs Labels")

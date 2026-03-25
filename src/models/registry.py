@@ -1,7 +1,7 @@
 import torch
 
-from asformer_model import ASFormer
-from ms_tcn_model import MSTCN
+from models.asformer import ASFormer
+from models.mstcn import MSTCN
 
 
 MODEL_CONFIGS = {
@@ -63,6 +63,16 @@ def load_model(model_name: str, checkpoint_path: str = None, device=None):
         checkpoint_path = MODEL_CONFIGS[model_name]["checkpoint"]
 
     state = torch.load(checkpoint_path, map_location=device)
-    model.load_state_dict(state)
+    try:
+        model.load_state_dict(state)
+    except RuntimeError as err:
+        print(
+            f"[WARN] Strict checkpoint load failed for '{model_name}' ({checkpoint_path}). "
+            "Trying non-strict load..."
+        )
+        print(f"[WARN] Original error: {err}")
+        incompatible = model.load_state_dict(state, strict=False)
+        print(f"[WARN] Missing keys: {len(incompatible.missing_keys)}")
+        print(f"[WARN] Unexpected keys: {len(incompatible.unexpected_keys)}")
     model.eval()
     return model, checkpoint_path

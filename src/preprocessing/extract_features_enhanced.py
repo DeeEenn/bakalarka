@@ -3,6 +3,7 @@ import mediapipe as mp
 import numpy as np
 import os
 from scipy.signal import savgol_filter
+from utils.paths import project_paths
 
 # --- KONFIGURACE ---
 mp_holistic = mp.solutions.holistic
@@ -242,10 +243,8 @@ def extract(input_root, output_root):
     print("  CELKEM: 243 features na snímek")
 
 if __name__ == "__main__":
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(script_dir)
-    
-    input_dir = os.path.join(project_root, "data", "raw_videos")
-    output_dir = os.path.join(project_root, "data", "features_enhanced")  # Nová složka!
+    paths = project_paths(__file__)
+    input_dir = str(paths["raw_videos"])
+    output_dir = str(paths["features_enhanced"])
     
     extract(input_dir, output_dir)

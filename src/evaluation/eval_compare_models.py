@@ -5,7 +5,8 @@ from collections import defaultdict
 import numpy as np
 import torch
 
-from model_registry import get_device, load_model
+from models.registry import get_device, load_model
+from utils.paths import project_paths
 
 
 def find_feature_label_pairs(features_dir, labels_dir):
@@ -23,9 +24,7 @@ def find_feature_label_pairs(features_dir, labels_dir):
 
 
 def collapse_segments(seq):
-    labels = []
-    starts = []
-    ends = []
+    labels, starts, ends = [], [], []
     if len(seq) == 0:
         return labels, starts, ends
 
@@ -109,12 +108,12 @@ def f1_at_overlap(pred, gt, overlap):
 def infer_logits(model_name, model, x, device):
     with torch.no_grad():
         if model_name == "asformer":
-            T = x.shape[-1]
-            mask = torch.ones((1, T), dtype=torch.bool, device=device)
-            logits = model(x, mask=mask)  # (1, C, T)
+            t_steps = x.shape[-1]
+            mask = torch.ones((1, t_steps), dtype=torch.bool, device=device)
+            logits = model(x, mask=mask)
         elif model_name == "mstcn":
-            stage_logits = model(x)       # (S, 1, C, T)
-            logits = stage_logits[-1]     # final stage
+            stage_logits = model(x)
+            logits = stage_logits[-1]
         else:
             raise ValueError(model_name)
     return logits
@@ -125,43 +124,34 @@ def evaluate_model(model_name, ckpt, pairs, device):
 
     total_correct = 0
     total_frames = 0
-    cls_tp = defaultdict(int)
-    cls_fp = defaultdict(int)
-    cls_fn = defaultdict(int)
+    cls_tp, cls_fp, cls_fn = defaultdict(int), defaultdict(int), defaultdict(int)
 
-    edit_scores = []
-    f1_10_scores = []
-    f1_25_scores = []
-    f1_50_scores = []
+    edit_scores, f1_10_scores, f1_25_scores, f1_50_scores = [], [], [], []
 
     for feat_path, label_path in pairs:
-        feat = np.load(feat_path).T  # (F, T)
+        feat = np.load(feat_path).T
         gt = np.loadtxt(label_path, dtype=np.int64)
 
-        T = min(feat.shape[1], len(gt))
-        if T <= 1:
+        t_steps = min(feat.shape[1], len(gt))
+        if t_steps <= 1:
             continue
 
-        feat = feat[:, :T]
-        gt = gt[:T]
+        feat = feat[:, :t_steps]
+        gt = gt[:t_steps]
 
         x = torch.from_numpy(feat).float().unsqueeze(0).to(device)
         logits = infer_logits(model_name, model, x, device)
-        pred = torch.argmax(logits, dim=1).squeeze(0).cpu().numpy()[:T]
+        pred = torch.argmax(logits, dim=1).squeeze(0).cpu().numpy()[:t_steps]
 
         total_correct += int((pred == gt).sum())
-        total_frames += int(T)
+        total_frames += int(t_steps)
 
-        # Macro F1 po tridach
         for c in range(6):
             p_c = pred == c
             g_c = gt == c
-            tp = int(np.logical_and(p_c, g_c).sum())
-            fp = int(np.logical_and(p_c, ~g_c).sum())
-            fn = int(np.logical_and(~p_c, g_c).sum())
-            cls_tp[c] += tp
-            cls_fp[c] += fp
-            cls_fn[c] += fn
+            cls_tp[c] += int(np.logical_and(p_c, g_c).sum())
+            cls_fp[c] += int(np.logical_and(p_c, ~g_c).sum())
+            cls_fn[c] += int(np.logical_and(~p_c, g_c).sum())
 
         edit_scores.append(edit_score(pred, gt))
         f1_10_scores.append(f1_at_overlap(pred, gt, 0.10))
@@ -172,12 +162,9 @@ def evaluate_model(model_name, ckpt, pairs, device):
 
     class_f1 = []
     for c in range(6):
-        tp = cls_tp[c]
-        fp = cls_fp[c]
-        fn = cls_fn[c]
+        tp, fp, fn = cls_tp[c], cls_fp[c], cls_fn[c]
         denom = 2 * tp + fp + fn
-        f1 = 0.0 if denom == 0 else (2.0 * tp / denom)
-        class_f1.append(f1)
+        class_f1.append(0.0 if denom == 0 else (2.0 * tp / denom))
 
     macro_f1 = float(np.mean(class_f1)) if class_f1 else 0.0
 
@@ -214,9 +201,10 @@ def print_table(results):
 
 
 def main():
+    paths = project_paths(__file__)
     parser = argparse.ArgumentParser(description="Eval + porovnani ASFormer vs MS-TCN")
-    parser.add_argument("--features_dir", default="../data/features_enhanced")
-    parser.add_argument("--labels_dir", default="../data/labels")
+    parser.add_argument("--features_dir", default=str(paths["features_enhanced"]))
+    parser.add_argument("--labels_dir", default=str(paths["labels"]))
     parser.add_argument("--asformer_ckpt", default="asformer_attention_v1.pth")
     parser.add_argument("--mstcn_ckpt", default="mstcn_v1.pth")
     args = parser.parse_args()
@@ -231,7 +219,6 @@ def main():
 
     res_asformer = evaluate_model("asformer", args.asformer_ckpt, pairs, device)
     res_mstcn = evaluate_model("mstcn", args.mstcn_ckpt, pairs, device)
-
     print_table([res_asformer, res_mstcn])
 
 

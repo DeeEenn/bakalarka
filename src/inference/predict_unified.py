@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from model_registry import get_device, load_model
+from models.registry import get_device, load_model
 
 
 PHASES_INFO = {
@@ -33,19 +33,17 @@ def pick_npy_file():
 
 
 def infer_one(model_name, model, feat_path, device):
-    features = np.load(feat_path).T  # (F, T)
-    x = torch.from_numpy(features).float().unsqueeze(0).to(device)  # (1, F, T)
+    features = np.load(feat_path).T
+    x = torch.from_numpy(features).float().unsqueeze(0).to(device)
 
     with torch.no_grad():
         if model_name == "asformer":
-            # ROZDIL OPROTI staremu predict.py:
-            # ASFormer ma attention masku. Tady je vse validni, tak same True.
-            T = x.shape[-1]
-            mask = torch.ones((1, T), dtype=torch.bool, device=device)
-            logits = model(x, mask=mask)  # (1, C, T)
+            t_steps = x.shape[-1]
+            mask = torch.ones((1, t_steps), dtype=torch.bool, device=device)
+            logits = model(x, mask=mask)
         elif model_name == "mstcn":
-            stage_logits = model(x)       # (S, 1, C, T)
-            logits = stage_logits[-1]     # ROZDIL: bereme posledni refinement stage
+            stage_logits = model(x)
+            logits = stage_logits[-1]
         else:
             raise ValueError(f"Unknown model_name: {model_name}")
 
@@ -64,26 +62,26 @@ def load_ground_truth(feat_path):
 
 def plot_prediction(feat_path, model_name, checkpoint_path, prediction, gt=None):
     if gt is not None:
-        T = min(len(gt), len(prediction))
-        gt = gt[:T]
-        prediction = prediction[:T]
+        t_steps = min(len(gt), len(prediction))
+        gt = gt[:t_steps]
+        prediction = prediction[:t_steps]
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15, 6), sharex=True)
     else:
-        T = len(prediction)
+        t_steps = len(prediction)
         fig, ax2 = plt.subplots(1, 1, figsize=(15, 3))
         ax1 = None
 
-    time_axis = np.arange(T)
+    time_axis = np.arange(t_steps)
 
     if ax1 is not None:
         gt_colors = [PHASES_INFO[int(g)]["color"] for g in gt]
-        ax1.bar(time_axis, [1] * T, color=gt_colors, width=1.0)
+        ax1.bar(time_axis, [1] * t_steps, color=gt_colors, width=1.0)
         ax1.set_title("Ground Truth", fontsize=12, fontweight="bold")
         ax1.set_yticks([])
         ax1.grid(False)
 
-    pred_colors = [PHASES_INFO[int(p)]["color"] for p in prediction[:T]]
-    ax2.bar(time_axis, [1] * T, color=pred_colors, width=1.0)
+    pred_colors = [PHASES_INFO[int(p)]["color"] for p in prediction[:t_steps]]
+    ax2.bar(time_axis, [1] * t_steps, color=pred_colors, width=1.0)
     ax2.set_title(f"Predikce modelu: {model_name}", fontsize=12, fontweight="bold")
     ax2.set_xlabel("Snimek (cas)")
     ax2.set_yticks([])
@@ -131,8 +129,8 @@ def main():
         print(f"Ground truth nenalezena: {gt_path}")
     else:
         print(f"Ground truth: {gt_path}")
-        T = min(len(gt), len(prediction))
-        frame_acc = (prediction[:T] == gt[:T]).mean()
+        t_steps = min(len(gt), len(prediction))
+        frame_acc = (prediction[:t_steps] == gt[:t_steps]).mean()
         print(f"Frame accuracy na tomto souboru: {frame_acc:.4f}")
 
     if not args.no_plot:
