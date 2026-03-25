@@ -117,7 +117,7 @@ for epoch in range(EPOCHS):
         optimizer.zero_grad()
 
         # stage_outputs: (S, B, C, T)
-        stage_outputs = model(data)
+        stage_outputs = model(data, mask=valid_mask)
 
         ce_loss_total = 0.0
         tmse_loss_total = 0.0

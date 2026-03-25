@@ -28,9 +28,11 @@ class TemporalConvFFN(nn.Module):
 
         self.act = nn.GELU()
         self.dropout = nn.Dropout(dropout)
+        self.norm = nn.LayerNorm(d_model)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         # x: (B, T, C)
+        x = self.norm(x)
         y = x.transpose(1, 2)  # (B, C, T)
         y = self.dw_conv(y)
         y = self.pw_in(y)
@@ -50,7 +52,14 @@ class ASFormerLayer(nn.Module):
     Oboji v pre-norm residual stylu.
     """
 
-    def __init__(self, d_model: int, num_heads: int, dropout: float, dilation: int):
+    def __init__(
+        self,
+        d_model: int,
+        num_heads: int,
+        dropout: float,
+        dilation: int,
+        window_size: int,
+    ):
         super().__init__()
 
         self.norm_attn = nn.LayerNorm(d_model)
@@ -65,17 +74,28 @@ class ASFormerLayer(nn.Module):
         self.norm_ffn = nn.LayerNorm(d_model)
         self.ffn = TemporalConvFFN(d_model=d_model, dropout=dropout, dilation=dilation)
         self.drop_ffn = nn.Dropout(dropout)
+        self.window_size = max(1, window_size)
+
+    def _build_local_attention_mask(self, seq_len: int, device: torch.device) -> torch.Tensor:
+        # Mask outside local window: 0 for allowed, -inf for blocked.
+        idx = torch.arange(seq_len, device=device)
+        dist = torch.abs(idx[:, None] - idx[None, :])
+        mask = torch.zeros((seq_len, seq_len), device=device)
+        mask = mask.masked_fill(dist > self.window_size, float("-inf"))
+        return mask
 
     def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         # x: (B, T, C)
         # mask: (B, T) True = valid pozice, False = padding
         key_padding_mask = None if mask is None else ~mask
+        local_attn_mask = self._build_local_attention_mask(x.size(1), x.device)
 
         attn_in = self.norm_attn(x)
         attn_out, _ = self.attn(
             attn_in,
             attn_in,
             attn_in,
+            attn_mask=local_attn_mask,
             key_padding_mask=key_padding_mask,
             need_weights=False,
         )
@@ -84,6 +104,9 @@ class ASFormerLayer(nn.Module):
         ffn_in = self.norm_ffn(x)
         ffn_out = self.ffn(ffn_in)
         x = x + self.drop_ffn(ffn_out)
+
+        if mask is not None:
+            x = x * mask.unsqueeze(-1).to(x.dtype)
         return x
 
 
@@ -102,6 +125,7 @@ class ASFormer(nn.Module):
         num_heads: int = 8,
         dropout: float = 0.1,
         max_dilation: int = 16,
+        max_window: int = 256,
     ):
         super().__init__()
 
@@ -111,12 +135,15 @@ class ASFormer(nn.Module):
         layers = []
         for i in range(num_layers):
             dilation = min(2 ** i, max_dilation)
+            # Hierarchical local attention window grows as 2^i.
+            window_size = min(2 ** i, max_window)
             layers.append(
                 ASFormerLayer(
                     d_model=d_model,
                     num_heads=num_heads,
                     dropout=dropout,
                     dilation=dilation,
+                    window_size=window_size,
                 )
             )
         self.layers = nn.ModuleList(layers)
@@ -144,6 +171,9 @@ class ASFormer(nn.Module):
         x = self.input_proj(x)       # (B, d_model, T)
         x = x.transpose(1, 2)        # (B, T, d_model)
 
+        if mask is None:
+            mask = torch.ones((x.size(0), x.size(1)), dtype=torch.bool, device=x.device)
+
         pe = self._sinusoidal_positional_encoding(
             length=x.size(1),
             dim=x.size(2),
@@ -151,6 +181,7 @@ class ASFormer(nn.Module):
             dtype=x.dtype,
         )
         x = self.input_dropout(x + pe)
+        x = x * mask.unsqueeze(-1).to(x.dtype)
 
         for layer in self.layers:
             x = layer(x, mask=mask)
