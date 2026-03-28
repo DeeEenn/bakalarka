@@ -1,14 +1,29 @@
 import os
 import cv2
+import sys
+from pathlib import Path
 
-from annotation_tools.annotate import (
-    METADATA_FILE,
-    OUTPUT_DIR,
-    VIDEO_DIR,
-    load_metadata_rows,
-    prompt_video_metadata,
-    upsert_metadata_row,
-)
+try:
+    from annotation_tools.annotate import (
+        METADATA_FILE,
+        OUTPUT_DIR,
+        VIDEO_DIR,
+        load_metadata_rows,
+        prompt_video_metadata,
+        upsert_metadata_row,
+    )
+except ModuleNotFoundError:
+    # Allow running directly from src/annotation_tools
+    src_root = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(src_root))
+    from annotation_tools.annotate import (
+        METADATA_FILE,
+        OUTPUT_DIR,
+        VIDEO_DIR,
+        load_metadata_rows,
+        prompt_video_metadata,
+        upsert_metadata_row,
+    )
 
 VIDEO_EXTENSIONS = [".mp4", ".avi", ".mov"]
 

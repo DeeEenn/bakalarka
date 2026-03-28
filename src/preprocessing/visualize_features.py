@@ -1,8 +1,18 @@
+import argparse
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from tkinter import Tk, filedialog
 import os
+from pathlib import Path
+
+try:
+    from utils.paths import project_paths
+except ModuleNotFoundError:
+    src_root = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(src_root))
+    from utils.paths import project_paths
 
 # --- DEFINICE PROPOJENÍ PRO HORNÍ POLOVINU TĚLA ---
 # Vynechali jsme body 23-32 (nohy), které u tvého videa dělají neplechu
@@ -19,6 +29,205 @@ HAND_CONNECTIONS = [
     (17, 18), (18, 19), (19, 20),        # malíček
     (0, 5), (5, 9), (9, 13), (13, 17), (17, 0) # dlaň
 ]
+
+
+def moving_average_1d(x, window=11):
+    if window <= 1 or len(x) < 3:
+        return x.copy()
+    w = min(window, len(x))
+    if w % 2 == 0:
+        w -= 1
+    if w < 3:
+        return x.copy()
+    pad = w // 2
+    kernel = np.ones(w, dtype=np.float32) / w
+    xp = np.pad(x, (pad, pad), mode="edge")
+    return np.convolve(xp, kernel, mode="valid")
+
+
+def save_skeleton_distances_figure(data, out_path, frame_idx=None):
+    num_frames = len(data)
+    if num_frames == 0:
+        raise ValueError("Prazdna data")
+    if frame_idx is None:
+        frame_idx = num_frames // 2
+    frame_idx = max(0, min(frame_idx, num_frames - 1))
+
+    row = data[frame_idx]
+    num_features = row.shape[0]
+    if num_features < 218:
+        raise ValueError(f"Nepodporovany format: {num_features}")
+
+    pose_data = row[:92].reshape(23, 4)
+    lh_data = row[92:155].reshape(21, 3)
+    rh_data = row[155:218].reshape(21, 3)
+
+    px, py, pz, pvis = pose_data[:, 0], pose_data[:, 1], pose_data[:, 2], pose_data[:, 3]
+
+    fig = plt.figure(figsize=(11, 8))
+    ax = fig.add_subplot(111, projection="3d")
+
+    for start, end in POSE_CONNECTIONS_UPPER:
+        if start < 23 and end < 23 and pvis[start] > 0.3 and pvis[end] > 0.3:
+            ax.plot([px[start], px[end]], [pz[start], pz[end]], [-py[start], -py[end]], color="black", linewidth=2.5, alpha=0.9)
+
+    ax.scatter(px[:17], pz[:17], -py[:17], c="dimgray", s=35, alpha=0.8)
+
+    lx, ly, lz = lh_data[:, 0].copy(), lh_data[:, 1].copy(), lh_data[:, 2].copy()
+    if not np.all(lx == 0) and pvis[15] > 0.3:
+        offset_x = px[15] - lx[0]
+        offset_y = py[15] - ly[0]
+        offset_z = pz[15] - lz[0]
+        lx += offset_x
+        ly += offset_y
+        lz += offset_z
+        for start, end in HAND_CONNECTIONS:
+            ax.plot([lx[start], lx[end]], [lz[start], lz[end]], [-ly[start], -ly[end]], color="green", linewidth=2.0, alpha=0.85)
+        ax.scatter(lx, lz, -ly, c="darkgreen", s=18)
+
+    rx, ry, rz = rh_data[:, 0].copy(), rh_data[:, 1].copy(), rh_data[:, 2].copy()
+    if not np.all(rx == 0) and pvis[16] > 0.3:
+        offset_x = px[16] - rx[0]
+        offset_y = py[16] - ry[0]
+        offset_z = pz[16] - rz[0]
+        rx += offset_x
+        ry += offset_y
+        rz += offset_z
+        for start, end in HAND_CONNECTIONS:
+            ax.plot([rx[start], rx[end]], [rz[start], rz[end]], [-ry[start], -ry[end]], color="red", linewidth=2.0, alpha=0.85)
+        ax.scatter(rx, rz, -ry, c="darkred", s=18)
+
+    # Highlight key pose points used in the thesis text.
+    key_points = [0, 10, 11, 12, 13, 14, 15, 16]
+    key_names = {
+        0: "0 Nose",
+        10: "10 Mouth",
+        11: "11 L Shoulder",
+        12: "12 R Shoulder",
+        13: "13 L Elbow",
+        14: "14 R Elbow",
+        15: "15 L Wrist",
+        16: "16 R Wrist",
+    }
+    for idx in key_points:
+        ax.scatter([px[idx]], [pz[idx]], [-py[idx]], c="royalblue", s=65)
+        ax.text(px[idx] + 0.01, pz[idx] + 0.01, -py[idx], key_names[idx], fontsize=8, color="navy")
+
+    # Distance overlays (illustrative dashed lines).
+    distance_pairs = [
+        (15, 10, "Lwrist-Mouth"),
+        (16, 10, "Rwrist-Mouth"),
+        (11, 12, "Shoulder width"),
+    ]
+    for a, b, label in distance_pairs:
+        ax.plot(
+            [px[a], px[b]],
+            [pz[a], pz[b]],
+            [-py[a], -py[b]],
+            linestyle="--",
+            linewidth=2,
+            color="magenta",
+            alpha=0.85,
+        )
+        mx, my, mz = (px[a] + px[b]) / 2, (py[a] + py[b]) / 2, (pz[a] + pz[b]) / 2
+        ax.text(mx, mz, -my, label, fontsize=8, color="magenta")
+
+    if num_features >= 243:
+        mouth_dist = row[228]
+        ax.text2D(0.02, 0.98, f"Mouth distance: {mouth_dist:.4f}", transform=ax.transAxes, color="magenta", fontsize=10)
+
+    ax.set_xlim(0.1, 0.9)
+    ax.set_ylim(-0.4, 0.4)
+    ax.set_zlim(-1.2, -0.2)
+    ax.set_xlabel("X")
+    ax.set_ylabel("Z")
+    ax.set_zlabel("Y")
+    ax.view_init(elev=6, azim=-88)
+    ax.set_title(f"Skeleton a klicove vzdalenosti | Snimek {frame_idx + 1}/{num_frames}")
+    ax.grid(True, alpha=0.25)
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=220)
+    plt.close(fig)
+
+
+def save_proxy_timeseries_figure(data, out_path):
+    num_frames = len(data)
+    if num_frames == 0:
+        raise ValueError("Prazdna data")
+
+    pose_data = data[:, :92].reshape(num_frames, 23, 4)
+    lwrist_y = -pose_data[:, 15, 1]
+    rwrist_y = -pose_data[:, 16, 1]
+
+    fig, ax = plt.subplots(figsize=(12, 4.6))
+    time_axis = np.arange(num_frames)
+    ax.plot(time_axis, lwrist_y, color="darkred", linewidth=2.0, label="Leve zapesti Y")
+    ax.plot(time_axis, rwrist_y, color="darkgreen", linewidth=2.0, label="Prave zapesti Y")
+
+    if data.shape[1] >= 243:
+        mouth = data[:, 228]
+        mouth_scaled = mouth * 35.0
+        ax.plot(time_axis, mouth_scaled, color="magenta", linewidth=2.0, label="Mouth distance (scaled)")
+
+    ax.set_title("Casove prubehy proxy priznaku")
+    ax.set_xlabel("Cislo snimku")
+    ax.set_ylabel("Hodnota signalu")
+    ax.grid(True, alpha=0.3)
+    ax.legend()
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=220)
+    plt.close(fig)
+
+
+def save_pre_post_smoothing_figure(data, out_path):
+    num_frames = len(data)
+    if num_frames == 0:
+        raise ValueError("Prazdna data")
+
+    pose_data = data[:, :92].reshape(num_frames, 23, 4)
+    raw_signal = -pose_data[:, 16, 1]  # right wrist Y
+    smooth_signal = moving_average_1d(raw_signal, window=11)
+
+    fig, axes = plt.subplots(2, 1, figsize=(12, 6), sharex=True)
+    t = np.arange(num_frames)
+
+    axes[0].plot(t, raw_signal, color="orangered", linewidth=1.8)
+    axes[0].set_title("Pred stabilizaci (raw signal)")
+    axes[0].set_ylabel("Y")
+    axes[0].grid(True, alpha=0.25)
+
+    axes[1].plot(t, smooth_signal, color="royalblue", linewidth=1.8)
+    axes[1].set_title("Po stabilizaci (moving average, window=11)")
+    axes[1].set_xlabel("Cislo snimku")
+    axes[1].set_ylabel("Y")
+    axes[1].grid(True, alpha=0.25)
+
+    plt.tight_layout()
+    plt.savefig(out_path, dpi=220)
+    plt.close(fig)
+
+
+def export_thesis_figures(file_path, output_dir, frame_idx=None):
+    data = np.load(file_path)
+    os.makedirs(output_dir, exist_ok=True)
+
+    fig4 = os.path.join(output_dir, "fig_04_skeleton_distances.png")
+    fig5 = os.path.join(output_dir, "fig_05_proxy_time_series.png")
+    fig6 = os.path.join(output_dir, "fig_06_pre_post_stabilization.png")
+
+    save_skeleton_distances_figure(data, fig4, frame_idx=frame_idx)
+    save_proxy_timeseries_figure(data, fig5)
+    save_pre_post_smoothing_figure(data, fig6)
+
+    print("\n=== THESIS EXPORT HOTOVO ===")
+    print(f"Obr. 4: {fig4}")
+    print(f"Obr. 5: {fig5}")
+    print(f"Obr. 6: {fig6}")
+
+
+def default_thesis_output_dir():
+    paths = project_paths(__file__)
+    return str(paths["results"] / "thesis_report")
 
 def select_feature_file():
     root = Tk()
@@ -371,13 +580,27 @@ def visualize_smoothness(file_path):
     print()
 
 if __name__ == "__main__":
-    path = select_feature_file()
-    if path:
+    parser = argparse.ArgumentParser(description="Vizualizace features (interaktivne i thesis export)")
+    parser.add_argument("--input", default=None, help="Cesta k .npy souboru. Kdyz chybi, otevre se vyber souboru.")
+    parser.add_argument("--thesis_export", action="store_true", help="Vygeneruje Obr. 4-6 primo do vystupni slozky.")
+    parser.add_argument("--output_dir", default=None, help="Vystupni slozka pro --thesis_export")
+    parser.add_argument("--frame_idx", type=int, default=None, help="Volitelny index snimku pro Obr. 4")
+    args = parser.parse_args()
+
+    path = args.input if args.input else select_feature_file()
+    if not path:
+        print("Nebyl vybran zadny soubor.")
+        raise SystemExit(0)
+
+    if args.thesis_export:
+        out_dir = args.output_dir or default_thesis_output_dir()
+        export_thesis_figures(path, out_dir, frame_idx=args.frame_idx)
+    else:
         print(f"\n📂 Vybraný soubor: {os.path.basename(path)}")
-        
+
         # Nejdřív analýza
         analyze_features(path)
-        
+
         # Menu pro výběr vizualizace
         print("\n" + "="*60)
         print("VÝBĚR VIZUALIZACE:")
@@ -385,10 +608,11 @@ if __name__ == "__main__":
         print("1 - 3D animace skeletonu (frontální pohled)")
         print("2 - Graf plynulosti pohybu v čase (ověření jitteru)")
         print("3 - Obojí (doporučeno!)")
+        print("4 - Thesis export Obr. 4/5/6 (automaticky do results/thesis_report)")
         print("="*60)
-        
+
         choice = input("\nTvá volba (1/2/3): ").strip()
-        
+
         if choice == "1":
             print("\n🎬 Spouštím 3D animaci...\n")
             visualize_inhalation_focus(path)
@@ -400,5 +624,8 @@ if __name__ == "__main__":
             visualize_smoothness(path)
             print("\n🎬 Spouštím 3D animaci...\n")
             visualize_inhalation_focus(path)
+        elif choice == "4":
+            out_dir = default_thesis_output_dir()
+            export_thesis_figures(path, out_dir)
         else:
             print("❌ Neplatná volba!")

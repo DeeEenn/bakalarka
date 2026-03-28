@@ -41,6 +41,9 @@ Run all commands from project root:
 ### 4) Thesis-ready outputs (tables + graphs)
 - `py src/evaluation/report_thesis.py --asformer_ckpt src/asformer_attention_v1.pth --mstcn_ckpt src/mstcn_v1.pth`
 
+
+- `py analyze_dataset_stats.py --video_root data/raw_videos --output_png results/thesis_report/video_length_histogram.png --output_csv results/thesis_report/video_length_stats.csv --bins 20`
+
 Outputs are saved to `results/thesis_report/`:
 - `summary_metrics.csv`
 - `per_video_metrics.csv`

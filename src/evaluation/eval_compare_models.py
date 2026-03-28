@@ -1,12 +1,21 @@
 import argparse
 import os
+import sys
 from collections import defaultdict
+from pathlib import Path
 
 import numpy as np
 import torch
 
-from models.registry import get_device, load_model
-from utils.paths import project_paths
+try:
+    from models.registry import get_device, load_model
+    from utils.paths import project_paths
+except ModuleNotFoundError:
+    # Allow direct execution from src/evaluation and project root invocations.
+    src_root = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(src_root))
+    from models.registry import get_device, load_model
+    from utils.paths import project_paths
 
 
 def find_feature_label_pairs(features_dir, labels_dir):

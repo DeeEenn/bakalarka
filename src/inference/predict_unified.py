@@ -1,13 +1,21 @@
 import argparse
 import os
+import sys
 from tkinter import Tk, filedialog
+from pathlib import Path
 
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 
-from models.registry import get_device, load_model
+try:
+    from models.registry import get_device, load_model
+except ModuleNotFoundError:
+    # Allow direct execution from src/inference and project root invocations.
+    src_root = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(src_root))
+    from models.registry import get_device, load_model
 
 
 PHASES_INFO = {

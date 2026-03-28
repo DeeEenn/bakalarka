@@ -1,10 +1,20 @@
 import torch
 import torch.nn.functional as F
+import sys
+from pathlib import Path
 from torch.utils.data import DataLoader
 
-from data_io.dataset import InhalerDataset
-from models.mstcn import MSTCN
-from utils.paths import project_paths
+try:
+    from data_io.dataset import InhalerDataset
+    from models.mstcn import MSTCN
+    from utils.paths import project_paths
+except ModuleNotFoundError:
+    # Allow direct execution from src/training
+    src_root = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(src_root))
+    from data_io.dataset import InhalerDataset
+    from models.mstcn import MSTCN
+    from utils.paths import project_paths
 
 
 EPOCHS = 50

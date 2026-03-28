@@ -12,3 +12,17 @@ zaloha_raw_data/
 
 
 asformer_v1.pth
+
+src/__pycache__/
+
+# Ignore Python cache folders anywhere in project
+**/__pycache__/
+
+# Ignore training checkpoints
+src/training/*.pth
+*.pth
+
+# Ignore generated thesis report artifacts (tables/graphs/temp notes)
+results/thesis_report/*
+
+bakalarka.md

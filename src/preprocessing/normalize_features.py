@@ -1,6 +1,15 @@
 import numpy as np
 import os
-from utils.paths import project_paths
+import sys
+from pathlib import Path
+
+try:
+    from utils.paths import project_paths
+except ModuleNotFoundError:
+    # Allow direct execution from src/preprocessing.
+    src_root = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(src_root))
+    from utils.paths import project_paths
 
 def normalize_skeleton(data):
     """
@@ -11,7 +20,7 @@ def normalize_skeleton(data):
     sequence = data.reshape(-1, 33, 4)
     normalized_sequence = np.zeros_like(sequence)
 
-    for f in range(len(sequence)): # Opraveno: přidána dvojtečka
+    for f in range(len(sequence)): 
         frame = sequence[f]
 
         # bod 11 je leve rameno, 12 prave

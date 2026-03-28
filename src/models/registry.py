@@ -1,4 +1,5 @@
 import torch
+from pathlib import Path
 
 from models.asformer import ASFormer
 from models.mstcn import MSTCN
@@ -35,6 +36,20 @@ def get_device():
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
+def _resolve_checkpoint_path(checkpoint_path: str) -> str:
+    candidate = Path(checkpoint_path)
+    if candidate.exists():
+        return str(candidate)
+
+    # Common fallback: keep only file name and look inside src/training.
+    src_dir = Path(__file__).resolve().parents[1]
+    fallback = src_dir / "training" / candidate.name
+    if fallback.exists():
+        return str(fallback)
+
+    return str(candidate)
+
+
 def build_model(model_name: str):
     model_name = model_name.lower()
     if model_name not in MODEL_CONFIGS:
@@ -61,6 +76,8 @@ def load_model(model_name: str, checkpoint_path: str = None, device=None):
 
     if checkpoint_path is None:
         checkpoint_path = MODEL_CONFIGS[model_name]["checkpoint"]
+
+    checkpoint_path = _resolve_checkpoint_path(checkpoint_path)
 
     state = torch.load(checkpoint_path, map_location=device)
     try:

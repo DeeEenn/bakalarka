@@ -1,7 +1,16 @@
 import csv
 import os
 import cv2
-from utils.paths import project_paths
+import sys
+from pathlib import Path
+
+try:
+    from utils.paths import project_paths
+except ModuleNotFoundError:
+    # Allow direct execution from src/annotation_tools.
+    src_root = Path(__file__).resolve().parents[1]
+    sys.path.insert(0, str(src_root))
+    from utils.paths import project_paths
 
 # CONFIG
 paths = project_paths(__file__)
