@@ -32,6 +32,19 @@ METRIC_COLUMNS = [
 ]
 
 
+GROUP_METRIC_COLUMNS = [
+    "model",
+    "group_by",
+    "group_value",
+    "samples",
+    "frame_acc",
+    "edit",
+    "f1_10",
+    "f1_25",
+    "f1_50",
+]
+
+
 def find_feature_label_pairs(features_dir, labels_dir):
     pairs = []
     for root, _, files in os.walk(features_dir):
@@ -254,6 +267,56 @@ def write_csv(path, rows, fieldnames):
             writer.writerow(row)
 
 
+def load_metadata_index(metadata_csv_path):
+    """
+    Returns metadata indexed by normalized label_file path, e.g. labels/01spravne/x.txt
+    """
+    index = {}
+    if not os.path.exists(metadata_csv_path):
+        return index
+
+    with open(metadata_csv_path, "r", newline="", encoding="utf-8") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            key = (row.get("label_file") or "").replace("\\", "/").strip()
+            if key:
+                index[key] = row
+    return index
+
+
+def _safe_mean(values):
+    return float(np.mean(values)) if values else 0.0
+
+
+def aggregate_group_metrics(per_video_rows, group_by):
+    """
+    Aggregate metrics by selected per-video metadata field.
+    """
+    buckets = defaultdict(list)
+    for row in per_video_rows:
+        value = row.get(group_by, "")
+        value = value if str(value).strip() != "" else "unknown"
+        key = (row["model"], value)
+        buckets[key].append(row)
+
+    out = []
+    for (model, value), rows in sorted(buckets.items(), key=lambda x: (x[0][0], str(x[0][1]))):
+        out.append(
+            {
+                "model": model,
+                "group_by": group_by,
+                "group_value": value,
+                "samples": len(rows),
+                "frame_acc": _safe_mean([r["frame_acc"] for r in rows]),
+                "edit": _safe_mean([r["edit"] for r in rows]),
+                "f1_10": _safe_mean([r["f1_10"] for r in rows]),
+                "f1_25": _safe_mean([r["f1_25"] for r in rows]),
+                "f1_50": _safe_mean([r["f1_50"] for r in rows]),
+            }
+        )
+    return out
+
+
 def plot_summary_metrics(summary_rows, output_png):
     metrics = ["frame_acc", "macro_f1", "edit", "f1_10", "f1_25", "f1_50"]
     metric_labels = ["FrameAcc", "MacroF1", "Edit", "F1@10", "F1@25", "F1@50"]
@@ -311,6 +374,7 @@ def main():
     parser.add_argument("--asformer_ckpt", default="asformer_attention_v1.pth")
     parser.add_argument("--mstcn_ckpt", default="mstcn_v1.pth")
     parser.add_argument("--out_dir", default=str(paths["results"] / "thesis_report"))
+    parser.add_argument("--metadata_csv", default=str(paths["metadata_csv"]))
     parser.add_argument(
         "--include_substring",
         default=None,
@@ -343,11 +407,29 @@ def main():
     summary_rows = [summary_asf, summary_mst]
     per_video_rows = per_video_asf + per_video_mst
 
+    metadata_index = load_metadata_index(args.metadata_csv)
+    for row in per_video_rows:
+        # Convert absolute label path to metadata-style relative key
+        rel_label = os.path.relpath(row["label_path"], args.labels_dir).replace("\\", "/")
+        meta_key = f"labels/{rel_label}"
+        meta = metadata_index.get(meta_key, {})
+        row["is_correct"] = meta.get("is_correct", "")
+        row["error_type"] = meta.get("error_type", "")
+        row["error_step"] = meta.get("error_step", "")
+        row["notes"] = meta.get("notes", "")
+
     print_table(summary_rows)
 
     summary_csv = os.path.join(args.out_dir, "summary_metrics.csv")
     per_video_csv = os.path.join(args.out_dir, "per_video_metrics.csv")
+    by_error_type_csv = os.path.join(args.out_dir, "group_metrics_by_error_type.csv")
+    by_error_step_csv = os.path.join(args.out_dir, "group_metrics_by_error_step.csv")
+    by_correctness_csv = os.path.join(args.out_dir, "group_metrics_by_is_correct.csv")
     summary_plot = os.path.join(args.out_dir, "summary_metrics_bar.png")
+
+    group_by_error_type = aggregate_group_metrics(per_video_rows, "error_type")
+    group_by_error_step = aggregate_group_metrics(per_video_rows, "error_step")
+    group_by_correctness = aggregate_group_metrics(per_video_rows, "is_correct")
 
     write_csv(summary_csv, summary_rows, fieldnames=METRIC_COLUMNS + ["checkpoint"])
     write_csv(
@@ -364,12 +446,22 @@ def main():
             "f1_10",
             "f1_25",
             "f1_50",
+            "is_correct",
+            "error_type",
+            "error_step",
+            "notes",
         ],
     )
+    write_csv(by_error_type_csv, group_by_error_type, fieldnames=GROUP_METRIC_COLUMNS)
+    write_csv(by_error_step_csv, group_by_error_step, fieldnames=GROUP_METRIC_COLUMNS)
+    write_csv(by_correctness_csv, group_by_correctness, fieldnames=GROUP_METRIC_COLUMNS)
     plot_summary_metrics(summary_rows, summary_plot)
 
     print(f"Saved summary CSV: {summary_csv}")
     print(f"Saved per-video CSV: {per_video_csv}")
+    print(f"Saved grouped CSV (error_type): {by_error_type_csv}")
+    print(f"Saved grouped CSV (error_step): {by_error_step_csv}")
+    print(f"Saved grouped CSV (is_correct): {by_correctness_csv}")
     print(f"Saved summary plot: {summary_plot}")
 
 

@@ -37,6 +37,14 @@ Run all commands from project root:
 ### 3) Visual prediction check
 - `py src/inference/predict_unified.py --model asformer --ckpt src/asformer_attention_v1.pth`
 - `py src/inference/predict_unified.py --model mstcn --ckpt src/mstcn_v1.pth`
+#### Compare both models on same video
+- `py src/inference/predict_unified.py --model both --asformer-ckpt src/asformer_attention_v1.pth --mstcn-ckpt src/mstcn_v1.pth --input data/features_enhanced/01spravne/NECO.npy`
+- Optional no-plot mode: add `--no-plot`
+
+Logic checker in `predict_unified.py`:
+- validates step order with tolerance that `PRIPRAVA (1)` and `ROZDEJCHANI (2)` can be mixed
+- validates average breath-hold (`ZADRZENI = class 4`) with threshold `>= 4.5s`
+- threshold can be changed by `--min-breath-hold-sec`
 
 ### 4) Thesis-ready outputs (tables + graphs)
 - `py src/evaluation/report_thesis.py --asformer_ckpt src/asformer_attention_v1.pth --mstcn_ckpt src/mstcn_v1.pth`
@@ -51,4 +59,25 @@ Outputs are saved to `results/thesis_report/`:
 
 Optional subset evaluation (e.g. only `01spravne`):
 - `py src/evaluation/report_thesis.py --include_substring 01spravne`
+
+## Annotation standard for wrong videos (important)
+When annotating wrong procedures, always fill metadata so each error is tied to a concrete step/class.
+
+Metadata fields in `data/video_metadata.csv`:
+- `is_correct` (`1` correct, `0` wrong)
+- `error_type` (e.g. `kratke_zadrzeni`, `malo_vydech`, `spatne_poradi`)
+- `error_step` (phase id `0-5` or `sequence`)
+- `error_start_frame` (optional)
+- `error_end_frame` (optional)
+
+Recommended mapping:
+- `kratke_zadrzeni` -> `error_step=4`
+- `malo_vydech` -> `error_step=5`
+- `spatne_poradi` -> `error_step=sequence`
+
+For `07spatne` (very short breath-hold):
+- set `is_correct=0`
+- set `error_type=kratke_zadrzeni`
+- set `error_step=4`
+- optionally fill `error_start_frame/error_end_frame` for better future analysis
 

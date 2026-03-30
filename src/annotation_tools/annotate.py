@@ -33,6 +33,9 @@ CSV_COLUMNS = [
     "video_id",
     "is_correct",
     "error_type",
+    "error_step",
+    "error_start_frame",
+    "error_end_frame",
     "notes",
     "label_file",
     "num_frames",
@@ -84,6 +87,33 @@ def infer_default_correctness(video_id):
     return "0"
 
 
+def infer_default_error_type(video_id):
+    video_id_lower = video_id.lower()
+    if "07spatne" in video_id_lower:
+        return "chybi_zadrzeni"
+    if "08spatne" in video_id_lower:
+        return "zadrzeni_otevrena_pusa"
+    if "01malo" in video_id_lower:
+        return "malo_vydech"
+    if "04nevytahle" in video_id_lower:
+        return "kratke_zadrzeni"
+    return ""
+
+
+def infer_default_error_step(error_type):
+    if error_type == "chybi_zadrzeni":
+        return "4"
+    if error_type == "zadrzeni_otevrena_pusa":
+        return "4"
+    if error_type == "kratke_zadrzeni":
+        return "4"
+    if error_type == "malo_vydech":
+        return "5"
+    if error_type == "spatne_poradi":
+        return "sequence"
+    return ""
+
+
 def prompt_video_metadata(video_id, label_file, num_frames, fps):
     print("\n--- VIDEO METADATA ---")
     print(f"Video: {video_id}")
@@ -96,10 +126,29 @@ def prompt_video_metadata(video_id, label_file, num_frames, fps):
         is_correct = default_correct
 
     error_type = ""
+    error_step = ""
+    error_start_frame = ""
+    error_end_frame = ""
+
     if is_correct == "0":
+        default_error_type = infer_default_error_type(video_id)
         error_type = input(
-            "Typ chyby (napr. malo_vydech;kratke_zadrzeni;spatne_poradi): "
+            "Typ chyby (napr. malo_vydech;kratke_zadrzeni;spatne_poradi)"
+            f" (default {default_error_type or 'none'}): "
         ).strip()
+        if error_type == "":
+            error_type = default_error_type
+
+        default_error_step = infer_default_error_step(error_type)
+        error_step = input(
+            "Krok/faze chyby [0-5 nebo 'sequence']"
+            f" (default {default_error_step or 'none'}): "
+        ).strip()
+        if error_step == "":
+            error_step = default_error_step
+
+        error_start_frame = input("Start chyby (frame, volitelne): ").strip()
+        error_end_frame = input("End chyby (frame, volitelne): ").strip()
 
     notes = input("Poznamka (volitelne): ").strip()
 
@@ -107,6 +156,9 @@ def prompt_video_metadata(video_id, label_file, num_frames, fps):
         "video_id": video_id,
         "is_correct": is_correct,
         "error_type": error_type,
+        "error_step": error_step,
+        "error_start_frame": error_start_frame,
+        "error_end_frame": error_end_frame,
         "notes": notes,
         "label_file": label_file,
         "num_frames": str(num_frames),
