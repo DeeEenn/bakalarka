@@ -19,6 +19,7 @@ def project_paths(start_file: str):
         "src": root / "src",
         "data": root / "data",
         "results": root / "results",
+        "training": root / "src" / "training",
         "features_enhanced": root / "data" / "features_enhanced",
         "labels": root / "data" / "labels",
         "raw_videos": root / "data" / "raw_videos",

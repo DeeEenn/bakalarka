@@ -31,6 +31,40 @@ HAND_CONNECTIONS = [
 ]
 
 
+def set_dynamic_axis_limits(ax, x_vals, y_vals, z_vals, margin_ratio=0.18):
+    """Set dynamic 3D limits so different camera crops do not look broken."""
+    x_vals = np.asarray(x_vals, dtype=np.float32)
+    y_vals = np.asarray(y_vals, dtype=np.float32)
+    z_vals = np.asarray(z_vals, dtype=np.float32)
+
+    finite_mask = np.isfinite(x_vals) & np.isfinite(y_vals) & np.isfinite(z_vals)
+    if not np.any(finite_mask):
+        # Fallback to a safe default view.
+        ax.set_xlim(-0.5, 0.5)
+        ax.set_ylim(-0.5, 0.5)
+        ax.set_zlim(-0.5, 0.5)
+        return
+
+    x = x_vals[finite_mask]
+    y = y_vals[finite_mask]
+    z = z_vals[finite_mask]
+
+    x_min, x_max = float(np.min(x)), float(np.max(x))
+    y_min, y_max = float(np.min(y)), float(np.max(y))
+    z_min, z_max = float(np.min(z)), float(np.max(z))
+
+    x_mid = 0.5 * (x_min + x_max)
+    y_mid = 0.5 * (y_min + y_max)
+    z_mid = 0.5 * (z_min + z_max)
+
+    max_span = max(x_max - x_min, y_max - y_min, z_max - z_min, 1e-4)
+    half_range = 0.5 * max_span * (1.0 + margin_ratio)
+
+    ax.set_xlim(x_mid - half_range, x_mid + half_range)
+    ax.set_ylim(y_mid - half_range, y_mid + half_range)
+    ax.set_zlim(z_mid - half_range, z_mid + half_range)
+
+
 def moving_average_1d(x, window=11):
     if window <= 1 or len(x) < 3:
         return x.copy()
@@ -136,9 +170,19 @@ def save_skeleton_distances_figure(data, out_path, frame_idx=None):
         mouth_dist = row[228]
         ax.text2D(0.02, 0.98, f"Mouth distance: {mouth_dist:.4f}", transform=ax.transAxes, color="magenta", fontsize=10)
 
-    ax.set_xlim(0.1, 0.9)
-    ax.set_ylim(-0.4, 0.4)
-    ax.set_zlim(-1.2, -0.2)
+    all_x = list(px)
+    all_y = list(pz)
+    all_z = list(-py)
+    if not np.all(lx == 0) and pvis[15] > 0.3:
+        all_x.extend(lx.tolist())
+        all_y.extend(lz.tolist())
+        all_z.extend((-ly).tolist())
+    if not np.all(rx == 0) and pvis[16] > 0.3:
+        all_x.extend(rx.tolist())
+        all_y.extend(rz.tolist())
+        all_z.extend((-ry).tolist())
+
+    set_dynamic_axis_limits(ax, all_x, all_y, all_z)
     ax.set_xlabel("X")
     ax.set_ylabel("Z")
     ax.set_zlabel("Y")
@@ -370,10 +414,20 @@ def visualize_inhalation_focus(file_path):
                        f'Mouth: {mouth_dist:.3f}', 
                        fontsize=9, color='magenta', fontweight='bold')
 
-        # --- NASTAVENÍ POHLEDU (Frontální + zoom na inhalaci) ---
-        ax.set_xlim(0.1, 0.9)      # Šířka
-        ax.set_ylim(-0.4, 0.4)     # Hloubka
-        ax.set_zlim(-1.2, -0.2)    # Výška (oříznuto, focus na hlavu/ruce)
+        # --- NASTAVENÍ POHLEDU (Frontální + dynamicke meze) ---
+        all_x = list(px)
+        all_y = list(pz)
+        all_z = list(-py)
+        if not np.all(lx == 0) and pvis[15] > 0.3:
+            all_x.extend(lx.tolist())
+            all_y.extend(lz.tolist())
+            all_z.extend((-ly).tolist())
+        if not np.all(rx == 0) and pvis[16] > 0.3:
+            all_x.extend(rx.tolist())
+            all_y.extend(rz.tolist())
+            all_z.extend((-ry).tolist())
+
+        set_dynamic_axis_limits(ax, all_x, all_y, all_z)
         
         ax.set_xlabel('X (←→)', fontsize=10)
         ax.set_ylabel('Z (hloubka)', fontsize=10)
