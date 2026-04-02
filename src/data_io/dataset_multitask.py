@@ -21,16 +21,19 @@ ERROR_TYPE_TO_IDX = {
     "spatne_poradi": 5,
     "zadrzeni_otevrena_pusa": 6,
     "malo_vydech": 7,
-    "other": 8,
+    "malo_rozdychani": 8,  # krátké/nedostatečné rozdýchání před inhalací
+    "vynechane_rozdychani": 9,  # kompletně vynechal rozdýchání
+    "other": 10,
 }
 
 # Error step to index mapping (which phase has error)
 ERROR_STEP_TO_IDX = {
     "none": 0,
     "sequence": 1,  # poradi kroku
-    "3": 2,  # INHALACE
-    "4": 3,  # ZADRZENI
-    "5": 4,  # VYDECH
+    "2": 2,  # ROZDYCHANI
+    "3": 3,  # INHALACE
+    "4": 4,  # ZADRZENI
+    "5": 5,  # VYDECH
 }
 
 
@@ -96,6 +99,9 @@ class InhalerDatasetMultitask(Dataset):
             reader = csv.DictReader(f)
             for row in reader:
                 label_file = row.get("label_file", "").replace("\\", "/")
+                # Normalize path: remove "data/" prefix if present
+                if label_file.startswith("data/"):
+                    label_file = label_file[5:]  # Remove "data/"
                 if not label_file:
                     continue
                 

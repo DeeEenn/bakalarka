@@ -44,8 +44,8 @@ def load_multitask_model(model_name, checkpoint_path, device):
             d_model=128,
             input_dim=243,
             num_phases=6,
-            num_error_types=9,
-            num_error_steps=5,
+            num_error_types=11,
+            num_error_steps=6,
             num_heads=8,
             dropout=0.1,
             max_dilation=16,
@@ -57,8 +57,8 @@ def load_multitask_model(model_name, checkpoint_path, device):
             num_f_maps=64,
             dim_in=243,
             num_phases=6,
-            num_error_types=9,
-            num_error_steps=5,
+            num_error_types=11,
+            num_error_steps=6,
             dropout=0.3,
         ).to(device)
     else:

@@ -94,9 +94,9 @@ def infer_default_error_type(video_id):
     if "08spatne" in video_id_lower:
         return "zadrzeni_otevrena_pusa"
     if "01malo" in video_id_lower:
-        return "malo_vydech"
-    if "04nevytahle" in video_id_lower:
-        return "kratke_zadrzeni"
+        return "malo_rozdychani"
+    if "01vubec" in video_id_lower:
+        return "vynechane_rozdychani"
     return ""
 
 
@@ -107,6 +107,10 @@ def infer_default_error_step(error_type):
         return "4"
     if error_type == "kratke_zadrzeni":
         return "4"
+    if error_type == "malo_rozdychani":
+        return "2"  # chyba ve fázi ROZDÝCHÁNÍ (nedostatečné)
+    if error_type == "vynechane_rozdychani":
+        return "2"  # chyba ve fázi ROZDÝCHÁNÍ (kompletně vynecháno)
     if error_type == "malo_vydech":
         return "5"
     if error_type == "spatne_poradi":

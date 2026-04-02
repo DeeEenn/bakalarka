@@ -178,8 +178,8 @@ def main():
         d_model=128,
         input_dim=243,
         num_phases=6,
-        num_error_types=9,
-        num_error_steps=5,
+        num_error_types=11,  # updated: malo_rozdychani + vynechane_rozdychani
+        num_error_steps=6,   # updated: added step "2" for ROZDYCHANI
         num_heads=8,
         dropout=0.1,
         max_dilation=16,

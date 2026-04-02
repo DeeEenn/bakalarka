@@ -156,13 +156,15 @@ video_id,is_correct,error_type,error_step,error_start_frame,error_end_frame,note
 - `error_start_frame`, `error_end_frame`: Optional frame range of error
 
 **Supported error types** (see `src/data_io/dataset_multitask.py`):
-- `kratke_zadrzeni` - Breath-hold too short
+- `kratke_zadrzeni` - Breath-hold too short (< 3s)
 - `chybi_zadrzeni` - Missing breath-hold phase
 - `zadrzeni_otevrena_pusa` - Mouth open during breath-hold
-- `spatna_pozice` - Wrong device position
-- `inhalace_pomala` - Too slow inhalation
-- `inhalace_rychla` - Too fast inhalation
-- `nevytahnuty_inhalator` - Inhaler not removed from mouth
+- `chybi_inhalace` - Missing inhalation
+- `chybi_vydech` - Missing exhalation
+- `spatne_poradi` - Wrong phase order
+- `malo_vydech` - Insufficient exhalation
+- `malo_rozdychani` - Insufficient breathing before inhalation
+- `vynechane_rozdychani` - Completely skipped breathing phase
 - `other` - Other errors
 
 ---
@@ -358,16 +360,17 @@ Edit `src/data_io/dataset_multitask.py`:
 
 ```python
 ERROR_TYPE_MAPPING = {
-    "correct": 0,
+    "none": 0,
     "kratke_zadrzeni": 1,
     "chybi_zadrzeni": 2,
-    "zadrzeni_otevrena_pusa": 3,
-    "spatna_pozice": 4,
-    "inhalace_pomala": 5,
-    "inhalace_rychla": 6,
-    "nevytahnuty_inhalator": 7,
-    "new_error_name": 8,        # ← Add new error
-    "other": 9                   # ← Increment "other"
+    "chybi_inhalace": 3,
+    "chybi_vydech": 4,
+    "spatne_poradi": 5,
+    "zadrzeni_otevrena_pusa": 6,
+    "malo_vydech": 7,
+    "malo_rozdychani": 8,         # krátké/nedostatečné rozdýchání
+    "vynechane_rozdychani": 9,    # kompletně vynechal rozdýchání
+    "other": 10
 }
 ```
 
@@ -378,7 +381,7 @@ Edit `src/models/registry.py`:
 ```python
 "asformer_multitask": {
     ...
-    "num_error_types": 10,  # Was 9, now 10
+    "num_error_types": 11,  # Was 10, now 11
     ...
 }
 ```
@@ -403,7 +406,7 @@ python src/training/train_asformer_multitask.py
   - Phase decoder (frame-level): outputs 6 classes per frame
   - Error classifiers (video-level): 3 separate heads
     - Correctness classifier: binary (correct/incorrect)
-    - Error type classifier: 9 classes
+    - Error type classifier: 11 classes
     - Error step classifier: 6 classes (none, sequence, 3, 4, 5)
 
 **Features:**
@@ -620,7 +623,8 @@ model = load_model("asformer_multitask", checkpoint_path)
 | Wrong position | spatna_pozice | Inhaler not at mouth |
 | Slow inhalation | inhalace_pomala | Inhalation too slow |
 | Fast inhalation | inhalace_rychla | Inhalation too fast |
-| Not removed | nevytahnuty_inhalator | Inhaler still in mouth during hold |
+| Insufficient breathing | malo_rozdychani | Short/shallow breathing before inhalation |
+| Skipped breathing | vynechane_rozdychani | Completely omitted breathing phase |
 
 ---
 

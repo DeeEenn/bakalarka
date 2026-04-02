@@ -1,36 +1,11 @@
 import torch
 from pathlib import Path
 
-from models.asformer import ASFormer
-from models.mstcn import MSTCN
 from models.asformer_multitask import ASFormerMultitask
 from models.mstcn_multitask import MSTCNMultitask
 
 
 MODEL_CONFIGS = {
-    "asformer": {
-        "checkpoint": "asformer_attention_v1.pth",
-        "kwargs": {
-            "num_layers": 8,
-            "d_model": 128,
-            "input_dim": 243,
-            "num_classes": 6,
-            "num_heads": 8,
-            "dropout": 0.1,
-            "max_dilation": 16,
-        },
-    },
-    "mstcn": {
-        "checkpoint": "mstcn_v1.pth",
-        "kwargs": {
-            "num_stages": 4,
-            "num_layers": 8,
-            "num_f_maps": 64,
-            "dim_in": 243,
-            "num_classes": 6,
-            "dropout": 0.3,
-        },
-    },
     "asformer_multitask": {
         "checkpoint": "asformer_multitask_v1.pth",
         "kwargs": {
@@ -38,8 +13,8 @@ MODEL_CONFIGS = {
             "d_model": 128,
             "input_dim": 243,
             "num_phases": 6,
-            "num_error_types": 9,
-            "num_error_steps": 5,
+            "num_error_types": 11,  # updated: malo_rozdychani + vynechane_rozdychani
+            "num_error_steps": 6,  # updated: added step "2" for ROZDYCHANI
             "num_heads": 8,
             "dropout": 0.1,
             "max_dilation": 16,
@@ -53,8 +28,8 @@ MODEL_CONFIGS = {
             "num_f_maps": 64,
             "dim_in": 243,
             "num_phases": 6,
-            "num_error_types": 9,
-            "num_error_steps": 5,
+            "num_error_types": 11,  # updated: malo_rozdychani + vynechane_rozdychani
+            "num_error_steps": 6,  # updated: added step "2" for ROZDYCHANI
             "dropout": 0.3,
         },
     },
@@ -86,11 +61,7 @@ def build_model(model_name: str):
 
     cfg = MODEL_CONFIGS[model_name]["kwargs"]
 
-    if model_name == "asformer":
-        model = ASFormer(**cfg)
-    elif model_name == "mstcn":
-        model = MSTCN(**cfg)
-    elif model_name == "asformer_multitask":
+    if model_name == "asformer_multitask":
         model = ASFormerMultitask(**cfg)
     elif model_name == "mstcn_multitask":
         model = MSTCNMultitask(**cfg)

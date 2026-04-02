@@ -39,8 +39,8 @@ NUM_LAYERS = 8
 NUM_F_MAPS = 64
 INPUT_DIM = 243
 NUM_PHASES = 6
-NUM_ERROR_TYPES = 9
-NUM_ERROR_STEPS = 5
+NUM_ERROR_TYPES = 11  # updated: malo_rozdychani + vynechane_rozdychani
+NUM_ERROR_STEPS = 6   # updated: added step "2" for ROZDYCHANI
 DROPOUT = 0.3
 
 # Loss weights

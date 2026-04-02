@@ -1,1 +1,1 @@
-from .dataset import InhalerDataset
+from .dataset_multitask import InhalerDatasetMultitask
