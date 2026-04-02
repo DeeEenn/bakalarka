@@ -4,7 +4,7 @@
 
 ---
 
-## 🎯 Project Overview
+## Project Overview
 
 This project uses **multi-task learning** with temporal convolutional networks (ASFormer, MS-TCN) to automatically recognize and assess inhaler technique from video recordings. The system:
 
