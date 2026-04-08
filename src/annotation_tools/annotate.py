@@ -108,9 +108,9 @@ def infer_default_error_step(error_type):
     if error_type == "kratke_zadrzeni":
         return "4"
     if error_type == "malo_rozdychani":
-        return "2"  # chyba ve fázi ROZDÝCHÁNÍ (nedostatečné)
+        return "2"  
     if error_type == "vynechane_rozdychani":
-        return "2"  # chyba ve fázi ROZDÝCHÁNÍ (kompletně vynecháno)
+        return "2"  
     if error_type == "malo_vydech":
         return "5"
     if error_type == "spatne_poradi":
@@ -192,7 +192,6 @@ def annotate_videos():
                 print(f"\n>>> START ANOTACE: {file}")
                 cap = cv2.VideoCapture(video_path)
 
-                # Ziskani celkoveho poctu snimku
                 total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
                 fps = cap.get(cv2.CAP_PROP_FPS)
 
@@ -205,7 +204,6 @@ def annotate_videos():
                 cv2.namedWindow(window_name, cv2.WINDOW_NORMAL)
                 cv2.resizeWindow(window_name, 1280, 720)
 
-                # Nacteme vsechny snimky predem (rychlejsi navigace)
                 print("    Nacitam snimky...")
                 all_frames = []
                 while True:
@@ -221,14 +219,12 @@ def annotate_videos():
 
                 print(f"    Nacteno {total_frames} snimku. Zacina anotace...")
 
-                # Inicializace labelu (vsechny zacinaji jako 0 = KLID)
                 labels = [0] * total_frames
 
                 # Frame-by-frame anotace
                 while True:
                     frame = all_frames[current_frame_idx].copy()
 
-                    # Info overlay
                     color = (0, 255, 0) if current_label > 0 else (200, 200, 200)
                     status_text = f"Snimek: {current_frame_idx + 1}/{total_frames} | FAZE: {PHASES_NAME[current_label]}"
 
@@ -242,7 +238,6 @@ def annotate_videos():
                         2,
                     )
 
-                    # Ukazatel prubehu
                     bar_width = frame.shape[1] - 60
                     bar_x = 30
                     bar_y = frame.shape[0] - 30
@@ -252,19 +247,18 @@ def annotate_videos():
 
                     cv2.imshow(window_name, frame)
 
-                    # Cekani na klavesu
                     key = cv2.waitKey(0) & 0xFF
 
-                    if key == 27:  # ESC - konec
+                    if key == 27:  
                         print("Anotace prerusena.")
                         cv2.destroyAllWindows()
                         return
-                    elif key == 13:  # ENTER - ulozeni a pokracovani na dalsi video
+                    elif key == 13: 
                         break
-                    elif key == 83 or key == ord("d"):  # Sipka vpravo nebo D - dalsi snimek
+                    elif key == 83 or key == ord("d"):  
                         labels[current_frame_idx] = current_label
                         current_frame_idx = min(current_frame_idx + 1, total_frames - 1)
-                    elif key == 81 or key == ord("a"):  # Sipka vlevo nebo A - predchozi
+                    elif key == 81 or key == ord("a"):  
                         current_frame_idx = max(current_frame_idx - 1, 0)
                     elif key == ord("0"):
                         current_label = 0
@@ -284,21 +278,19 @@ def annotate_videos():
                     elif key == ord("5"):
                         current_label = 5
                         labels[current_frame_idx] = current_label
-                    elif key == ord("s"):  # S - Skip (nastav vsechny zbyvajici na aktualni label)
+                    elif key == ord("s"): 
                         for i in range(current_frame_idx, total_frames):
                             labels[i] = current_label
                         break
 
                 cv2.destroyAllWindows()
 
-                # Zapis do souboru - kazdy label na radek
                 with open(label_file, "w", encoding="utf-8") as f:
                     for l in labels:
                         f.write(f"{l}\n")
 
                 print(f"--- OK: Ulozeno {len(labels)} anotaci (= pocet snimku ve videu).")
 
-                # Ulozeni video-level metadata pro detekci kvality postupu.
                 metadata_row = prompt_video_metadata(
                     video_id=video_id,
                     label_file=os.path.relpath(label_file, project_root).replace("\\", "/"),
