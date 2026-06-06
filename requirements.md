@@ -1,4 +1,4 @@
-# Hlavní knihovny pro zpracování obrazu a AI
+# Main libraries for video sequences and AI
 opencv-python==4.8.1.78
 mediapipe==0.10.13
 numpy==1.26.2
@@ -8,5 +8,5 @@ torch==2.1.1
 torchvision==0.16.1
 torchaudio==2.1.1
 
-# Vizualizace a utility
+# Visiualization and utility
 matplotlib==3.8.2
