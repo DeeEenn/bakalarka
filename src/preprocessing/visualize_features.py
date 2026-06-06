@@ -306,7 +306,7 @@ def visualize_inhalation_focus(file_path):
             print(f"  → Raw coordinates: 218")
             print(f"  → Distances: 10, Angles: 8, Hand config: 6")
         else:
-            print(f"⚠️ VAROVÁNÍ: Neznámý formát {num_features} features")
+            print(f"VAROVÁNÍ: Neznámý formát {num_features} features")
             print(f"Podporované: 218 (basic), 242 (old enhanced) nebo 243 (enhanced)")
             return
     except Exception as e:
@@ -442,14 +442,14 @@ def analyze_features(file_path):
     elif num_features == 242:
         print(f"✓ Verze: ENHANCED OLD (bez mouth distance)")
     else:
-        print(f"⚠️ Neznámá verze")
+        print(f"Neznámá verze")
     
     pose_data = data[:, :92].reshape(num_frames, 23, 4)
     lh_data = data[:, 92:155].reshape(num_frames, 21, 3)
     rh_data = data[:, 155:218].reshape(num_frames, 21, 3)
     
     avg_visibility = pose_data[:, :, 3].mean()
-    print(f"\n📍 Průměrná visibility těla: {avg_visibility:.2%}")
+    print(f"\nPrůměrná visibility těla: {avg_visibility:.2%}")
     if avg_visibility < 0.5:
         print(" VAROVÁNÍ: Nízká viditelnost (<50%) - možná špatné osvětlení/kamera")
     
@@ -478,9 +478,9 @@ def analyze_features(file_path):
     zero_ratio = np.sum(raw_data == 0) / raw_data.size
     print(f"\n🔧 Nulové hodnoty (raw coords): {zero_ratio:.2%}")
     if zero_ratio > 0.3:
-        print(f"  ⚠️ Hodně nul - možná špatná detekce nebo chybějící data")
+        print(f" Hodně nul - možná špatná detekce nebo chybějící data")
     
-    print(f"\n🤖 Doporučení pro trénink:")
+    print(f"\n Doporučení pro trénink:")
     print(f"  ✓ Formát je správný ({num_features} features)")
     print(f"  ✓ Interpolace a vyhlazení aplikováno")
     
@@ -586,9 +586,9 @@ def visualize_smoothness(file_path):
     if jitter < 0.01:
         print(f"  ✓ Vyhlazení funguje dobře - data jsou plynulá")
     elif jitter < 0.03:
-        print(f"  ⚠️ Mírný jitter - data jsou OK, ale mohla by být gladsší")
+        print(f"  Mírný jitter - data jsou OK, ale mohla by být gladsší")
     else:
-        print(f"  ❌ Vysoký jitter - možná je potřeba silnější vyhlazení")
+        print(f"  Vysoký jitter - možná je potřeba silnější vyhlazení")
     print()
 
 if __name__ == "__main__":
@@ -608,7 +608,7 @@ if __name__ == "__main__":
         out_dir = args.output_dir or default_thesis_output_dir()
         export_thesis_figures(path, out_dir, frame_idx=args.frame_idx)
     else:
-        print(f"\n📂 Vybraný soubor: {os.path.basename(path)}")
+        print(f"\n Vybraný soubor: {os.path.basename(path)}")
 
         analyze_features(path)
 
@@ -624,18 +624,18 @@ if __name__ == "__main__":
         choice = input("\nTvá volba (1/2/3): ").strip()
 
         if choice == "1":
-            print("\n🎬 Spouštím 3D animaci...\n")
+            print("\n Spouštím 3D animaci...\n")
             visualize_inhalation_focus(path)
         elif choice == "2":
-            print("\n📊 Zobrazuji grafy plynulosti...\n")
+            print("\n Zobrazuji grafy plynulosti...\n")
             visualize_smoothness(path)
         elif choice == "3":
-            print("\n📊 Zobrazuji grafy plynulosti...\n")
+            print("\n Zobrazuji grafy plynulosti...\n")
             visualize_smoothness(path)
-            print("\n🎬 Spouštím 3D animaci...\n")
+            print("\n Spouštím 3D animaci...\n")
             visualize_inhalation_focus(path)
         elif choice == "4":
             out_dir = default_thesis_output_dir()
             export_thesis_figures(path, out_dir)
         else:
-            print("❌ Neplatná volba!")
+            print(" Neplatná volba!")
