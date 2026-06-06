@@ -13,7 +13,7 @@ except ModuleNotFoundError:
 
 def validate_annotations():
     """
-    Ověří, že počet labelů odpovídá počtu snímků v NPY souborech
+    Veries that number of labels corresponds to NPY files
     """
     paths = project_paths(__file__)
     features_dir = str(paths["features_enhanced"])
@@ -37,7 +37,7 @@ def validate_annotations():
                 label_path = os.path.join(label_dir, os.path.splitext(file)[0] + ".txt")
                 
                 if not os.path.exists(label_path):
-                    errors.append(f"❌ {file}: Chybí anotace ({label_path})")
+                    errors.append(f" {file}: Chybí anotace ({label_path})")
                     continue
                 
                 # Načti počet snímků
@@ -53,20 +53,20 @@ def validate_annotations():
                     validated += 1
                     print(f"✓ {file}: {num_features} snímků = {num_labels} labelů")
                 else:
-                    errors.append(f"❌ {file}: {num_features} snímků ≠ {num_labels} labelů (rozdíl: {abs(num_features - num_labels)})")
+                    errors.append(f" {file}: {num_features} snímků ≠ {num_labels} labelů (rozdíl: {abs(num_features - num_labels)})")
     
     print("\n" + "="*80)
     print("VÝSLEDKY VALIDACE")
     print("="*80)
     print(f"✓ Validováno: {validated} souborů")
-    print(f"❌ Chyby: {len(errors)} souborů")
+    print(f" Chyby: {len(errors)} souborů")
     
     if errors:
         print("\nCHYBNÉ SOUBORY:")
         for err in errors:
             print(f"  {err}")
     else:
-        print("\n🎉 VŠECHNY ANOTACE SEDÍ S FEATURES!")
+        print("\n VŠECHNY ANOTACE SEDÍ S FEATURES!")
     
     print("="*80 + "\n")
 
